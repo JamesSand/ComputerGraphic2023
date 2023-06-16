@@ -19,22 +19,18 @@ int main(int argc, char* argv[]) {
         std::cout << "Usage: ./bin/PA1 <input scene file> <output bmp file> "
                      "<numRounds> <numPhotons> <ckpt_interval>"
                   << endl;
-        return 1;
+        return 666;
     }
 
-    // 根据输入构建场景    
-    Scene scene(argv[1]);
-
-    cout << "done scenece parse" << endl;
-
+    string input_file_path = argv[1];
+    string output_file_path = argv[2];
     int numRounds = atoi(argv[3]);
     int numPhotons = atoi(argv[4]);
     int ckpt_interval = atoi(argv[5]);
 
     // 构建 sppm，arg2 是 output path
-    SPPM sppm(scene, numRounds, numPhotons, ckpt_interval, argv[2]);
+    SPPM sppm(input_file_path, numRounds, numPhotons, ckpt_interval, output_file_path);
     sppm.render();
-
 
     return 0;
 }
