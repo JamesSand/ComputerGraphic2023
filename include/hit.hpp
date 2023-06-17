@@ -43,7 +43,7 @@ class Hit {
         material = m;
         normal = n;
         color = c;
-        p = _p;
+        position = _p;
     }
 
     float t, r2;
@@ -51,7 +51,7 @@ class Hit {
     // flux 为通量
     // attenuation 衰减
     Vector3f normal, color, flux, fluxLight, attenuation;
-    Vector3f dir, p;
+    Vector3f dir, position;
     int n;
 };
 

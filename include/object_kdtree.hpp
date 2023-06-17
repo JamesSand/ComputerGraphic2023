@@ -21,7 +21,7 @@ class ObjectKDTreeNode {
     vector<Object3D*>* faces;
     ObjectKDTreeNode *ls, *rs;
     int l, r;
-    bool inside(Object3D* face) {
+    bool intersect(Object3D* face) {
         // 判断 face 的 aabb 包围盒是否在当前节点的 aabb 盒子里边
         // 规定只要不是完全不相交，就算在里边
         Vector3f lo = face->min();
@@ -189,7 +189,7 @@ class ObjectKDTree {
 
     
 
-    // //  ========================================= build tree part
+    // //  ========================================= build tree part ==========================
 
     ObjectKDTree(vector<Object3D*>* input_faces) {
         Vector3f low = Vector3f(INF, INF, INF);
@@ -215,7 +215,7 @@ class ObjectKDTree {
         // 遍历父节点传进来的所有 face 
         current_node->faces = new vector<Object3D*>;
         for (auto face : *faces){
-            if (current_node->inside(face)) {
+            if (current_node->intersect(face)) {
                 current_node->faces->push_back(face);
             }
         }
@@ -306,7 +306,7 @@ class ObjectKDTree {
         } 
     }
 
-    //  ========================================= utils function
+    //  ========================================= utils function ==================
 
     inline float min_float(float a, float b){
         return a < b ? a : b;

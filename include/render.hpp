@@ -196,8 +196,7 @@ class SPPM {
                         float type = uniform_rand();
                         if (type <= material->type.x()) {  // Diffuse
                             // 漫反射，要在 kdtree 里边记录
-                            hitKDTree->update(hitKDTree->root, hit.p, attenuation,
-                                            ray.direction);
+                            hitKDTree->update(hitKDTree->root, hit.position, attenuation, ray.direction);
                             ray.direction = diffDir(hit_normal, -1, seed);
                         } else if (type <= material->type.x() + material->type.y()) {
                             // 反射
@@ -231,6 +230,8 @@ class SPPM {
             }
     }
 
+    
+
     void render() {
         // time_t start = time(NULL);
         time_t start_time = time(NULL);
@@ -238,7 +239,7 @@ class SPPM {
         for (int round = 0; round < numRounds; round++) {
 
             float time_cost = (time(NULL) - start_time);
-            float done_percentage = float(round + 1) / numRounds;
+            // float done_percentage = float(round + 1) / numRounds;
             cout << "current iter " << round + 1 << " total iter " << numRounds;
             cout << " time elapse " << time_cost << " sec ";
             cout << "finish time " << time_cost / (round + 1) * numRounds << "sec";
@@ -276,10 +277,8 @@ class SPPM {
                 // 这个地方很奇怪，似乎只能这么写才能正确写入
                 ckpt_img.SaveBMP((outdir + "/" + filename).c_str());
                 cout << "ckpt at iter " << round + 1 << endl;
-
             }
         }
-
 
         Image final_img(w, h);
         for(int i = 0; i < w; i++){

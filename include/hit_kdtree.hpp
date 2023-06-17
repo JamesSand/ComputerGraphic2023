@@ -5,99 +5,243 @@
 #include "constants.h"
 #include "hit.hpp"
 
-class HitKDTreeNode {
-   public:
+struct HitKDTreeNode {
+//    public:
     Hit *hit;
     Vector3f min, max;
     float maxr2;
     HitKDTreeNode *ls, *rs;
 };
 
-inline float sqr(float a) { return a * a; }
-
+// 这里只是沿用了 object kdtree 的写法，但是本质上是一维的 kdtree，实际上也就是 线段树
 class HitKDTree {
-    int n;
+
+    public:
+
+    int total_hits;
     Hit **hits;
-    HitKDTreeNode *build(int l, int r, int d) {
-        HitKDTreeNode *p = new HitKDTreeNode;
-        p->min = Vector3f(INF, INF, INF);
-        p->max = -p->min;
-        p->maxr2 = 0;
-        for (int i = l; i <= r; ++i) {
-            p->min = minE(p->min, hits[i]->p);
-            p->max = maxE(p->max, hits[i]->p);
-            p->maxr2 = std::max(p->maxr2, hits[i]->r2);
+
+    HitKDTreeNode *root;
+
+
+    // =================== build_kdtree tree =====================
+
+
+    HitKDTree(vector<Hit *> *input_hits) {
+        total_hits = input_hits->size();
+
+        hits = new Hit *[total_hits];
+        for (int i = 0; i < total_hits; i++){
+            hits[i] = (*input_hits)[i];
         }
 
-        int m = l + r >> 1;
-        if (d == 0)
-            std::nth_element(hits + l, hits + m, hits + r + 1, cmpHitX);
-        else if (d == 1)
-            std::nth_element(hits + l, hits + m, hits + r + 1, cmpHitY);
-        else
-            std::nth_element(hits + l, hits + m, hits + r + 1, cmpHitZ);
-        p->hit = hits[m];
-        if (l <= m - 1)
-            p->ls = build(l, m - 1, (d + 1) % 3);
-        else
-            p->ls = nullptr;
-        if (m + 1 <= r)
-            p->rs = build(m + 1, r, (d + 1) % 3);
-        else
-            p->rs = nullptr;
-        return p;
+        root = build_kdtree(0, total_hits - 1, 0);
     }
 
-    void del(HitKDTreeNode *p) {
-        if (p->ls) del(p->ls);
-        if (p->rs) del(p->rs);
-        delete p;
-    }
-
-   public:
-    HitKDTreeNode *root;
-    HitKDTree(vector<Hit *> *hits) {
-        n = hits->size();
-        this->hits = new Hit *[n];
-        for (int i = 0; i < n; ++i) this->hits[i] = (*hits)[i];
-        root = build(0, n - 1, 0);
-    }
     ~HitKDTree() {
-        if (!root) return;
-        del(root);
+        if (root == nullptr){
+            return;
+        }
+
+        delete_node(root);
         delete[] hits;
     }
 
-    void update(HitKDTreeNode *p, const Vector3f &photon,
-                const Vector3f &attenuation, const Vector3f &d) {
-        if (!p) return;
-        float mind = 0, maxd = 0;
-        if (photon.x() > p->max.x()) mind += sqr(photon.x() - p->max.x());
-        if (photon.x() < p->min.x()) mind += sqr(p->min.x() - photon.x());
-        if (photon.y() > p->max.y()) mind += sqr(photon.y() - p->max.y());
-        if (photon.y() < p->min.y()) mind += sqr(p->min.y() - photon.y());
-        if (photon.z() > p->max.z()) mind += sqr(photon.z() - p->max.z());
-        if (photon.z() < p->min.z()) mind += sqr(p->min.z() - photon.z());
-        if (mind > p->maxr2) return;
-        if ((photon - p->hit->p).squaredLength() <= p->hit->r2) {
-            Hit *hp = p->hit;
-            float factor = (hp->n * ALPHA + ALPHA) / (hp->n * ALPHA + 1.);
-            Vector3f dr = d - hp->normal * (2 * Vector3f::dot(d, hp->normal));
-            hp->n++;
-            hp->r2 *= factor;
-            hp->flux = (hp->flux + hp->attenuation * attenuation) * factor;
+
+    HitKDTreeNode *build_kdtree(int left, int right, int dimension) {
+
+        HitKDTreeNode *current_node = new HitKDTreeNode;
+        Vector3f temp_min = Vector3f(INF, INF, INF);
+        Vector3f temp_max = Vector3f(-INF, -INF, -INF);
+        float temp_radius = 0.0;
+
+        for (int i = left; i <= right; i++) {
+            temp_min = min_Vf3(temp_min, hits[i]->position);
+            temp_max = max_Vf3(temp_max, hits[i]->position);
+            temp_radius = max_float(temp_radius, hits[i]->r2);
         }
-        if (p->ls) update(p->ls, photon, attenuation, d);
-        if (p->rs) update(p->rs, photon, attenuation, d);
-        p->maxr2 = p->hit->r2;
-        if (p->ls && p->ls->hit->r2 > p->maxr2) p->maxr2 = p->ls->hit->r2;
-        if (p->rs && p->rs->hit->r2 > p->maxr2) p->maxr2 = p->rs->hit->r2;
+
+        current_node->min = temp_min;
+        current_node->max = temp_max;
+        current_node->maxr2 = temp_radius;
+
+        int middle = (left + right) / 2;
+        
+        // set the middle to the right place
+        if (dimension == 0){
+            std::nth_element(hits + left, hits + middle, hits + right + 1, x_compare);
+        }else if (dimension == 1){
+            std::nth_element(hits + left, hits + middle, hits + right + 1, y_compare);
+        }else{
+            std::nth_element(hits + left, hits + middle, hits + right + 1, z_compare);
+        }
+            
+        current_node->hit = hits[middle];
+
+        if (left <= middle - 1){
+            // build left
+            current_node->ls = build_kdtree(left, middle - 1, (dimension + 1) % 3);
+        }else{
+            current_node->ls = nullptr;
+        }
+        
+
+        if (middle + 1 <= right){
+            // build right
+            current_node->rs = build_kdtree(middle + 1, right, (dimension + 1) % 3);
+        }else{
+            current_node->rs = nullptr;
+        }
+            
+        
+        return current_node;
     }
 
-    static bool cmpHitX(Hit *a, Hit *b) { return a->p.x() < b->p.x(); }
 
-    static bool cmpHitY(Hit *a, Hit *b) { return a->p.y() < b->p.y(); }
+    // =================== delete and update =====================
 
-    static bool cmpHitZ(Hit *a, Hit *b) { return a->p.z() < b->p.z(); }
+
+    bool aabb_acc_check(HitKDTreeNode *current_node, const Vector3f& position){
+        float upper_bound = current_node->maxr2;
+        float radius_counter = 0;
+
+        Vector3f temp_max = current_node->max;
+        Vector3f temp_min = current_node->min;
+
+        if (position.x() > temp_max.x()) {
+            radius_counter += square_float(position.x() - temp_max.x());
+        }else if (position.x() < temp_min.x()){
+            radius_counter += square_float(temp_min.x() - position.x());
+        } 
+
+        if (position.y() > temp_max.y()) {
+            radius_counter += square_float(position.y() - temp_max.y());
+        }else if (position.y() < temp_min.y()){
+            radius_counter += square_float(temp_min.y() - position.y());
+        } 
+
+        if (position.z() > temp_max.z()) {
+            radius_counter += square_float(position.z() - temp_max.z());
+        }else if (position.z() < temp_min.z()){
+            radius_counter += square_float(temp_min.z() - position.z());
+        } 
+
+        
+        if (radius_counter > current_node->maxr2){
+            return false;
+        }
+
+        return true;
+
+
+    }
+
+    void update(HitKDTreeNode *current_node, const Vector3f &photon,
+                const Vector3f &attenuation, const Vector3f &direction) {
+
+        // recursive base
+        if (current_node == nullptr){
+            return;
+        }
+        // // if (!current_node) return;
+        // float mind = 0;
+        // if (photon.x() > current_node->max.x()) mind += square_float(photon.x() - current_node->max.x());
+        // if (photon.x() < current_node->min.x()) mind += square_float(current_node->min.x() - photon.x());
+        // if (photon.y() > current_node->max.y()) mind += square_float(photon.y() - current_node->max.y());
+        // if (photon.y() < current_node->min.y()) mind += square_float(current_node->min.y() - photon.y());
+        // if (photon.z() > current_node->max.z()) mind += square_float(photon.z() - current_node->max.z());
+        // if (photon.z() < current_node->min.z()) mind += square_float(current_node->min.z() - photon.z());
+        // if (mind > current_node->maxr2) return ;
+
+        // aabb 包围盒加速检查
+        if (aabb_acc_check(current_node, photon) == false){
+            return;
+        }
+
+
+
+        if ((photon - current_node->hit->position).squaredLength() <= current_node->hit->r2) {
+            // 小于 吸收 radius 可以被吸收
+            Hit * hitpoint = current_node->hit;
+            float factor = (hitpoint->n * ALPHA + ALPHA) / (hitpoint->n * ALPHA + 1.);
+            Vector3f dr = direction - hitpoint->normal * (2 * Vector3f::dot(direction, hitpoint->normal));
+            hitpoint->n++;
+            // 本来 alpha 是 0.6 但是这里更新的是 radius square
+            // 更新半径
+            hitpoint->r2 *= factor;
+            // 更新光通量
+            hitpoint->flux = (hitpoint->flux + hitpoint->attenuation * attenuation) * factor;
+        }
+
+        // recursive update
+        if (current_node->ls) {
+            update(current_node->ls, photon, attenuation, direction);
+        }
+        if (current_node->rs){
+            update(current_node->rs, photon, attenuation, direction);
+        }
+
+        // update max radius squre
+        current_node->maxr2 = current_node->hit->r2;
+
+        if (current_node->ls && current_node->ls->hit->r2 > current_node->maxr2){
+            current_node->maxr2 = current_node->ls->hit->r2;
+        }
+        if (current_node->rs && current_node->rs->hit->r2 > current_node->maxr2){
+            current_node->maxr2 = current_node->rs->hit->r2;
+        }
+    }
+    
+    void delete_node(HitKDTreeNode *current_node) {
+        // recursive delete node
+        if (current_node->ls){
+            delete_node(current_node->ls);
+        }
+        if (current_node->rs){
+            delete_node(current_node->rs);
+        }
+        delete current_node;
+    }
+
+   
+    
+    // ================================ utils ================================
+
+
+    inline float square_float(float a) { return a * a; }
+
+    inline float min_float(float a, float b){
+        return a < b ? a : b;
+    }
+
+    inline float max_float(float a, float b){
+        return a < b ? b : a;
+    }
+
+    inline Vector3f min_Vf3(const Vector3f& a, const Vector3f&b){
+        return Vector3f(min_float(a.x(), b.x()),
+                        min_float(a.y(), b.y()),
+                        min_float(a.z(), b.z())
+                        );
+    }
+
+    inline Vector3f max_Vf3(const Vector3f& a, const Vector3f&b){
+        return Vector3f(max_float(a.x(), b.x()),
+                        max_float(a.y(), b.y()),
+                        max_float(a.z(), b.z())
+                        );
+    }
+
+
+    static bool x_compare(Hit *a, Hit *b) { 
+        return a->position.x() < b->position.x(); 
+    }
+    static bool y_compare(Hit *a, Hit *b) { 
+        return a->position.y() < b->position.y(); 
+    }
+    static bool z_compare(Hit *a, Hit *b) { 
+        return a->position.z() < b->position.z(); 
+    }
+
 };
 #endif
