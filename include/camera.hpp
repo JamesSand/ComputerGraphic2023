@@ -82,13 +82,27 @@ class PerspectiveCamera : public Camera {
     }
 
     Ray generateRay(const Vector2f &point) override {
-        float csx = focalLength * (point.x() - cx) / fx;
-        float csy = focalLength * (point.y() - cy) / fy;
-        float dx = RND * aperture, dy = RND * aperture;
-        Vector3f dir(csx - dx, -csy - dy, focalLength);
+        // 模拟光圈带来的扰动
+        float symm_rand_x = symmatric_rand();
+        float symm_rand_y = symmatric_rand();
+        float dx = symm_rand_x * aperture;
+        float dy = symm_rand_y * aperture;
+
+        // 这里考虑到要对基于光圈扰动之后的的射线计算方向，所以要整个乘一个 focal
+        // float csx = focalLength * (point.x() - cx) / fx;
+        // float csy = focalLength * (point.y() - cy) / fy;
+        // Vector3f noised_direction(csx - dx, -csy - dy, focalLength);
+
+        float origin_x = (point.x() - cx) / fx;
+        float origin_y = (cy - point.y()) / fy;
+        Vector3f noised_direction(origin_x - dx / focalLength, origin_y - dy / focalLength, 1.0);
+        // 向世界坐标系转换的矩阵 R
         Matrix3f R(horizontal, -up, direction);
-        dir = (R * dir).normalized();
-        Ray ray(center + horizontal * dx - up * dy, dir);
+        noised_direction = (R * noised_direction).normalized();
+        // 这里考虑了景深，所以要根据光圈对 ray 的 origin做扰动，
+        // 具体来说，是在成像点附近做了一个光圈的矩形，在这上边随机扰动
+        Vector3f noised_center = center +  horizontal * dx - up * dy;
+        Ray ray(noised_center, noised_direction);
         return ray;
     }
 

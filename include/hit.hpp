@@ -48,6 +48,8 @@ class Hit {
 
     float t, r2;
     Material *material;
+    // flux 为通量
+    // attenuation 衰减
     Vector3f normal, color, flux, fluxLight, attenuation;
     Vector3f dir, p;
     int n;

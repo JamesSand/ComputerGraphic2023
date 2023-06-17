@@ -17,78 +17,6 @@
 #include "scene.hpp"
 #include "utils.hpp"
 using namespace std;
-// static Vector3f ptColor(Ray ray, const Scene& scene) {
-//     Group* group = scene.getGroup();
-//     int depth = 0;
-//     Vector3f color(0, 0, 0), cf(1, 1, 1);
-//     while (true) {
-//         if (++depth > TRACE_DEPTH || cf.max() < 1e-3) return color;
-//         // 判断camRay是否和场景有交点,返回最近交点的数据,存储在hit中.
-//         Hit hit;
-//         if (!group->intersect(ray, hit)) {
-//             color += scene.getBackgroundColor();
-//             return color;
-//         }
-
-//         // Path Tracing
-//         ray.origin += ray.direction * hit.t;
-//         Material* material = hit.material;
-//         Vector3f refColor(hit.color), N(hit.normal);
-
-//         // Emission
-//         color += material->emission * cf;
-//         cf = cf * refColor;
-//         float type = RND2;
-//         if (type <= material->type.x()) {  // diffuse
-//             ray.direction = diffDir(N);
-//         } else if (type <=
-//                    material->type.x() + material->type.y()) {  // specular
-//             float cost = Vector3f::dot(ray.direction, N);
-//             ray.direction = (ray.direction - N * (cost * 2)).normalized();
-//         } else {  // refraction
-//             float n = material->refr;
-//             float R0 = ((1.0 - n) * (1.0 - n)) / ((1.0 + n) * (1.0 + n));
-//             if (Vector3f::dot(N, ray.direction) > 0) {  // inside the medium
-//                 N.negate();
-//                 n = 1 / n;
-//             }
-//             n = 1 / n;
-//             float cost1 = -Vector3f::dot(N, ray.direction);  // cosine theta_1
-//             float cost2 =
-//                 1.0 - n * n * (1.0 - cost1 * cost1);  // cosine theta_2
-//             float Rprob = R0 + (1.0 - R0) * pow(1.0 - cost1,
-//                                                 5.0);  // Schlick-approximation
-//             if (cost2 > 0 && RND2 > Rprob) {           // refraction direction
-//                 ray.direction =
-//                     ((ray.direction * n) + (N * (n * cost1 - sqrt(cost2))))
-//                         .normalized();
-//             } else {  // reflection direction
-//                 ray.direction = (ray.direction + N * (cost1 * 2));
-//             }
-//         }
-//     }
-// }
-
-// static Vector3f rcColor(Ray ray, const Scene& scene) {
-//     Group* group = scene.getGroup();
-//     int depth = 0;
-//     Vector3f color(0, 0, 0);
-//     // 判断camRay是否和场景有交点,返回最近交点的数据,存储在hit中.
-//     Hit hit;
-//     if (!group->intersect(ray, hit)) {
-//         color += scene.getBackgroundColor();
-//         return color;
-//     }
-//     for (int li = 0; li < scene.getNumLights(); ++li) {
-//         Light* light = scene.getLight(li);
-//         Vector3f L, lightColor;
-//         // 获得光照强度
-//         light->getIllumination(ray.pointAtParameter(hit.getT()), L, lightColor);
-//         // 计算局部光强
-//         color += hit.getMaterial()->phongShade(ray, hit, L, lightColor);
-//     }
-// }
-
 
 class SPPM {
    public:
@@ -126,8 +54,8 @@ class SPPM {
                 hitPoints.push_back(new Hit());
             }
         }
-
         cout << "Image Width: " << w << " Height: " << h << endl;
+
     }
 
     ~SPPM() {
@@ -143,61 +71,88 @@ class SPPM {
     }
 
     void forward() {
+
 #pragma omp parallel for schedule(dynamic, 1)
 
         for(int i = 0; i < w; i++){
             for(int j = 0; j < h; j++){
                 
-                Ray ray = camera->generateRay(Vector2f(i + RND, j + RND));
+                // 抗锯齿
+                float symm_rand_x = symmatric_rand();
+                float symm_rand_y = symmatric_rand();
+                
+                Ray ray = camera->generateRay(Vector2f(i + symm_rand_x, j + symm_rand_y));
                 int hit_index = i * h + j;
                 Hit * hit = hitPoints[hit_index];
 
-                int depth = 0;
+                int iter_counter = 0;
+                // 初始光设为白光，之后的每次迭代，直接相乘即可
                 Vector3f attenuation(1, 1, 1);
                 while (true) {
-                    if (++depth > TRACE_DEPTH || attenuation.max() < 1e-3){
+                    iter_counter += 1;
+                    if (iter_counter > MAX_ITERATION_NUM || attenuation.max() < STOP_ENERGY){
+                        // 如果超过迭代次数，或者光线强度过低，则退出迭代
                         break;
                     }
+                    // 现在是追踪camera 出来的光想，所以每次迭代需要重置 t
                     hit->t = INF;
                     if (!group->intersect(ray, *hit)) {
                         hit->fluxLight += hit->attenuation*scene->getBackgroundColor();
                         break;
                     }
+                    // 每次迭代要将光线原点更新到交点
                     ray.origin += ray.direction * (*hit).t;
                     Material* material = (*hit).material;
-                    Vector3f N(hit->normal);
-                    float type = RND2;
-                    if (type <= material->type.x()) {  // Diffuse
+                    Vector3f hit_normal(hit->normal);
+                    // 根据随机数来决定是，漫反射，反射，还是折射
+                    float rand_type = uniform_rand();
+                    if (rand_type <= material->type.x()) {  
+                        // 漫反射，吸收 break
+                        // 吸收点颜色设置为当前光的颜色乘以反射面的颜色
                         hit->attenuation = attenuation * hit->color;
+
                         hit->fluxLight += hit->attenuation * material->emission;
                         break;
-                    } else if (type <= material->type.x() + material->type.y()) {
-                        float cost = Vector3f::dot(ray.direction, N);
-                        ray.direction = (ray.direction - N * (cost * 2)).normalized();
+                        
+                    } else if (rand_type <= material->type.x() + material->type.y()) {
+                        // 镜面反射
+                        // cos t 是入射方向与 hit normal 的夹角
+                        float cost = Vector3f::dot(ray.direction, hit_normal);
+                        ray.direction = (ray.direction - hit_normal * (cost * 2)).normalized();
                     } else {
+
+                        // 如下代码的数学原理参考了
+                        // https://zhuanlan.zhihu.com/p/375746359
+                        // https://zhuanlan.zhihu.com/p/443186414
+
+                        // 折射
                         float n = material->refr;
                         float R0 = ((1.0 - n) * (1.0 - n)) / ((1.0 + n) * (1.0 + n));
-                        if (Vector3f::dot(N, ray.direction) > 0) {  // inside the medium
-                            N.negate();
+                        if (Vector3f::dot(hit_normal, ray.direction) > 0) {  
+                            // 如果从物体里向空气里折射，需要将 hit norm 反向，同时将折射率交换，也即去倒数
+                            hit_normal.negate();
                             n = 1 / n;
                         }
                         n = 1 / n;
-                        float cost1 =
-                            -Vector3f::dot(N, ray.direction);  // cosine theta_1
-                        float cost2 =
-                            1.0 - n * n * (1.0 - cost1 * cost1);  // cosine theta_2
-                        float Rprob =
-                            R0 + (1.0 - R0) * pow(1.0 - cost1,
-                                                5.0);   // Schlick-approximation
-                        if (cost2 > 0 && RND2 > Rprob) {  // refraction direction
-                            ray.direction =
-                                ((ray.direction * n) + (N * (n * cost1 - sqrt(cost2))))
-                                    .normalized();
+                        float cost1 = - Vector3f::dot(hit_normal, ray.direction);  
+                        
+                        // 这里计算 cost2 开根之前
+                        // 考虑到有可能入射角太大，是镜面反射，不开方
+                        float cost2_before_root = 1.0 - n * n * (1.0 - cost1 * cost1); 
+                        
+                        // 这一部分是菲涅尔方程的 Schlick 近似的结果
+                        // 有 Rprob 的概率发生镜面反射
+                        float Rprob = R0 + (1.0 - R0) * pow(1.0 - cost1, 5.0); 
+                        if (cost2_before_root > 0 && uniform_rand() > Rprob) { 
+                            // 折射
+                            ray.direction = ((ray.direction * n) + (hit_normal * (n * cost1 - sqrt(cost2_before_root)))).normalized();
                         } else {  // reflection direction
-                            ray.direction =
-                                (ray.direction + N * (cost1 * 2)).normalized();
+                            // 镜面反射
+                            // 注意这里 hitnormal 的方向是负的
+                            ray.direction = (ray.direction + hit_normal * (cost1 * 2)).normalized();
                         }
                     }
+                    // 改变光的颜色
                     attenuation = attenuation * hit->color;
                 }
 
@@ -214,53 +169,59 @@ class SPPM {
                 for (int j = 0;j < illuminants.size(); ++j) {
                 
                     Vector3f color = illuminants[j]->material->emission;
-                    Ray ray = illuminants[j]->randomRay(-1, (long long)round * numPhotons + (round + 1) * w * h + i);
+
+                    long long rand_ray_seed = (long long)round * numPhotons + (round + 1) * w * h + i;
+
+                    Ray ray = illuminants[j]->randomRay(-1, rand_ray_seed);
                     
                     long long seed = round * numPhotons + i;
 
-                    int depth = 0;
+                    int iter_count = 0;
+                    // 这里或许是最后再乘比较好
                     Vector3f attenuation = color * Vector3f(250, 250, 250);
                     while (true) {
-                        if (++depth > TRACE_DEPTH || attenuation.max() < 1e-3){
+                        iter_count += 1;
+                        if (iter_count > MAX_ITERATION_NUM || attenuation.max() < STOP_ENERGY){
                             break;
                         }
+
                         Hit hit;
                         if (!group->intersect(ray, hit)){
                             break;
                         }
+
                         ray.origin += ray.direction * hit.t;
                         Material* material = hit.material;
-                        Vector3f N(hit.normal);
-                        float type = RND2;
+                        Vector3f hit_normal(hit.normal);
+                        float type = uniform_rand();
                         if (type <= material->type.x()) {  // Diffuse
+                            // 漫反射，要在 kdtree 里边记录
                             hitKDTree->update(hitKDTree->root, hit.p, attenuation,
                                             ray.direction);
-                            ray.direction = diffDir(N, -1, seed);
+                            ray.direction = diffDir(hit_normal, -1, seed);
                         } else if (type <= material->type.x() + material->type.y()) {
-                            float cost = Vector3f::dot(ray.direction, N);
-                            ray.direction = (ray.direction - N * (cost * 2)).normalized();
+                            // 反射
+                            float cost = Vector3f::dot(ray.direction, hit_normal);
+                            ray.direction = (ray.direction - hit_normal * (cost * 2)).normalized();
                         } else {
+                            // 折射
                             float n = material->refr;
                             float R0 = ((1.0 - n) * (1.0 - n)) / ((1.0 + n) * (1.0 + n));
-                            if (Vector3f::dot(N, ray.direction) > 0) {  // inside the medium
-                                N.negate();
+                            if (Vector3f::dot(hit_normal, ray.direction) > 0) {  // inside the medium
+                                hit_normal.negate();
                                 n = 1 / n;
                             }
                             n = 1 / n;
-                            float cost1 =
-                                -Vector3f::dot(N, ray.direction);  // cosine theta_1
-                            float cost2 =
-                                1.0 - n * n * (1.0 - cost1 * cost1);  // cosine theta_2
-                            float Rprob =
-                                R0 + (1.0 - R0) * pow(1.0 - cost1,
-                                                    5.0);   // Schlick-approximation
-                            if (cost2 > 0 && RND2 > Rprob) {  // refraction direction
-                                ray.direction =
-                                    ((ray.direction * n) + (N * (n * cost1 - sqrt(cost2))))
-                                        .normalized();
-                            } else {  // reflection direction
-                                ray.direction =
-                                    (ray.direction + N * (cost1 * 2)).normalized();
+                            float cost1 = -Vector3f::dot(hit_normal, ray.direction);  // cosine theta_1
+                            float cost2_before_root = 1.0 - n * n * (1.0 - cost1 * cost1);  // cosine theta_2
+                            
+                            float Rprob = R0 + (1.0 - R0) * pow(1.0 - cost1, 5.0);   // Schlick-approximation
+                            if (cost2_before_root > 0 && uniform_rand() > Rprob) {  
+                                // 折射
+                                ray.direction = ((ray.direction * n) + (hit_normal * (n * cost1 - sqrt(cost2_before_root)))).normalized();
+                            } else {  
+                                // 反射
+                                ray.direction = (ray.direction + hit_normal * (cost1 * 2)).normalized();
                             }
                         }
                         attenuation = attenuation * hit.color;
@@ -283,11 +244,10 @@ class SPPM {
             cout << "finish time " << time_cost / (round + 1) * numRounds << "sec";
             cout << endl;
 
-
             // 相机采集光子 forward
             forward();
 
-            // 重建 kd tree
+            // 根据从 camera 发出的光线，重建 kd tree
             if (hitKDTree){
                 delete hitKDTree;
             } 
@@ -303,6 +263,7 @@ class SPPM {
                     for (int j = 0; j < h; j++){
                         int hitpoint_index = i * h + j;
                         Hit * current_hit = hitPoints[hitpoint_index];
+
                         Vector3f current_color = current_hit->flux / (M_PI * current_hit->r2 * numPhotons * (round + 1)) +
                                                     current_hit->fluxLight / (round + 1);
                         ckpt_img.SetPixel(i, j, current_color);

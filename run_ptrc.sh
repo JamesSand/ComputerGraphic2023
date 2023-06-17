@@ -40,5 +40,5 @@ cd ..
 # time bin/PA1 testcases/scene17_bump.txt output/scene17_bump.bmp $METHOD $SAMPLES
 # time bin/PA1 testcases/scene18_dof.txt output/scene18_dof.bmp $METHOD $SAMPLES
 # time bin/PA1 testcases/scene18_dof_0.txt output/scene18_dof_0.bmp $METHOD $SAMPLES
-time bin/PA1 testcases/scene19_sibenik.txt output/scene19_sibenik.bmp $METHOD $SAMPLES
+# time bin/PA1 testcases/scene19_sibenik.txt output/scene19_sibenik.bmp $METHOD $SAMPLES
 # time bin/PA1 testcases/scene21_livingroom.txt output/scene21_livingroom.bmp $METHOD $SAMPLES

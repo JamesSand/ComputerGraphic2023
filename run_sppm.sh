@@ -21,9 +21,11 @@ cd ..
 # Run all testcases. 
 # You can comment some lines to disable the run of specific examples.
 
-# TEST_CASE_NAME=copy_scene06_bunny_1k_vn
-TEST_CASE_NAME=scene06_bunny_1k_vn
+# testcases/scene18_dof_0.txt
 
+TEST_CASE_NAME=scene06_bunny_1k_vn
+# TEST_CASE_NAME=scene19_sibenik
+# TEST_CASE_NAME=scene20_diamond_r
 rm -r sppm_output
 
 mkdir -p sppm_output

@@ -11,10 +11,19 @@ const int prime[] = {
     31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
     73, 79, 83, 89, 97, 101, 103, 107, 109, 113,127,131, 137, 139, 149, 151, 157, 163, 167, 173,179, 181, 191, 193, 197, 199, 211, 223, 227, 229};
 // Helpers for random number generation
-static std::mt19937 mersenneTwister;
+static std::mt19937 rand_19937;
 static std::uniform_real_distribution<float> uniform;
-#define RND (2.0 * uniform(mersenneTwister) - 1.0)
-#define RND2 (uniform(mersenneTwister))
+
+inline float symmatric_rand(){
+    return 2.0 * uniform(rand_19937) - 1.0;
+}
+
+inline float uniform_rand(){
+    return uniform(rand_19937);
+}
+
+
+#define RND2 (uniform(rand_19937))
 inline float clamp(float x)
 {
     return x < 0 ? 0 : x > 1 ? 1 : x;
