@@ -48,55 +48,12 @@ class ObjectKDTree {
 
     ObjectKDTreeNode* root;
     vector<Object3D*>* faces;
-
-    inline float min_float(float a, float b){
-        return a < b ? a : b;
-    }
-
-    inline float max_float(float a, float b){
-        return a < b ? b : a;
-    }
-
-    inline Vector3f min_Vf3(const Vector3f& a, const Vector3f&b){
-        return Vector3f(min_float(a.x(), b.x()),
-                        min_float(a.y(), b.y()),
-                        min_float(a.z(), b.z())
-                        );
-    }
-
-    inline Vector3f max_Vf3(const Vector3f& a, const Vector3f&b){
-        return Vector3f(max_float(a.x(), b.x()),
-                        max_float(a.y(), b.y()),
-                        max_float(a.z(), b.z())
-                        );
-    }
-
-   
     
-    ObjectKDTree(vector<Object3D*>* input_faces) {
-        Vector3f low = Vector3f(INF, INF, INF);
-        Vector3f high = Vector3f(-INF, -INF, -INF);
-
-        for (auto face : *input_faces) {
-            low = min_Vf3(low, face->min());
-            high = max_Vf3(high, face->max());
-        }
-        // start to build obj kd tree
-        root = build_obj_kdtree(1, 0, input_faces, low, high);
-
-        faces = new vector<Object3D*>;
-        getFaces(root, faces);
-    }
-
-    float cuboidIntersect(ObjectKDTreeNode* p, const Ray& ray) const {
-        float t = INF;
-        if (!p) return t;
-        AABB(p->min, p->max).intersect(ray, t);
-        return t;
-    }
+    // //  ========================================= intersect part
 
     bool intersect(const Ray& ray, Hit& hit) const {
         Object3D* nextFace = nullptr;
+        // start search from root
         return intersect(root, ray, nextFace, hit);
     }
 
@@ -122,6 +79,33 @@ class ObjectKDTree {
             if (p->ls) flag |= intersect(p->ls, ray, nextFace, hit);
         }
         return flag;
+    }
+
+
+    float cuboidIntersect(ObjectKDTreeNode* p, const Ray& ray) const {
+        float t = INF;
+        if (!p) return t;
+        AABB(p->min, p->max).intersect(ray, t);
+        return t;
+    }
+
+    
+
+    // //  ========================================= build tree part
+
+    ObjectKDTree(vector<Object3D*>* input_faces) {
+        Vector3f low = Vector3f(INF, INF, INF);
+        Vector3f high = Vector3f(-INF, -INF, -INF);
+
+        for (auto face : *input_faces) {
+            low = min_Vf3(low, face->min());
+            high = max_Vf3(high, face->max());
+        }
+        // start to build obj kd tree
+        root = build_obj_kdtree(1, 0, input_faces, low, high);
+
+        faces = new vector<Object3D*>;
+        collect_face(root, faces);
     }
 
     ObjectKDTreeNode* build_obj_kdtree(int depth, int dimension, vector<Object3D*>* faces,
@@ -209,12 +193,43 @@ class ObjectKDTree {
         return current_node;
     }
 
-    void getFaces(ObjectKDTreeNode* current_node, vector<Object3D*>* faces) {
+    void collect_face(ObjectKDTreeNode* current_node, vector<Object3D*>* faces) {
         current_node->l = faces->size();
-        for (auto face : *(current_node->faces)) faces->push_back(face);
+        for (auto face : *(current_node->faces)){
+            faces->push_back(face);
+        } 
         current_node->r = faces->size();
-        if (current_node->ls) getFaces(current_node->ls, faces);
-        if (current_node->rs) getFaces(current_node->rs, faces);
+
+        if (current_node->ls){
+            collect_face(current_node->ls, faces);
+        }
+        if (current_node->rs){
+            collect_face(current_node->rs, faces);
+        } 
+    }
+
+    //  ========================================= utils function
+
+    inline float min_float(float a, float b){
+        return a < b ? a : b;
+    }
+
+    inline float max_float(float a, float b){
+        return a < b ? b : a;
+    }
+
+    inline Vector3f min_Vf3(const Vector3f& a, const Vector3f&b){
+        return Vector3f(min_float(a.x(), b.x()),
+                        min_float(a.y(), b.y()),
+                        min_float(a.z(), b.z())
+                        );
+    }
+
+    inline Vector3f max_Vf3(const Vector3f& a, const Vector3f&b){
+        return Vector3f(max_float(a.x(), b.x()),
+                        max_float(a.y(), b.y()),
+                        max_float(a.z(), b.z())
+                        );
     }
 
 };
