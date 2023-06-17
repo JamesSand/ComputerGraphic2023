@@ -30,6 +30,10 @@ class AABB {
     }
 
     bool intersect(const Ray &r, float &t_min) {
+
+        // AABB 包围盒的实现参考了如下文章
+        // https://zhuanlan.zhihu.com/p/35321344
+
         Vector3f o(r.getOrigin()), invdir(1 / r.getDirection());
         vector<int> sgn = {invdir.x() < 0, invdir.y() < 0, invdir.z() < 0};
         t_min = INF;
@@ -52,6 +56,7 @@ class AABB {
     Vector3f bounds[2];
 };
 
+// Cylinder 圆柱体
 class Cylinder {
    public:
     Cylinder(float ymin, float ymax, float r)

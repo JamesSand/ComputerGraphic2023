@@ -22,20 +22,42 @@ class ObjectKDTreeNode {
     ObjectKDTreeNode *ls, *rs;
     int l, r;
     bool inside(Object3D* face) {
-        Vector3f faceMin = face->min();
-        Vector3f faceMax = face->max();
-        return (faceMin.x() < max.x() ||
-                faceMin.x() == max.x() && faceMin.x() == faceMax.x()) &&
-               (faceMax.x() > min.x() ||
-                faceMax.x() == min.x() && faceMin.x() == faceMax.x()) &&
-               (faceMin.y() < max.y() ||
-                faceMin.y() == max.y() && faceMin.y() == faceMax.y()) &&
-               (faceMax.y() > min.y() ||
-                faceMax.y() == min.y() && faceMin.y() == faceMax.y()) &&
-               (faceMin.z() < max.z() ||
-                faceMin.z() == max.z() && faceMin.z() == faceMax.z()) &&
-               (faceMax.z() > min.z() ||
-                faceMax.z() == min.z() && faceMin.z() == faceMax.z());
+        // 判断 face 的 aabb 包围盒是否在当前节点的 aabb 盒子里边
+        // 规定只要不是完全不相交，就算在里边
+        Vector3f lo = face->min();
+        Vector3f hi = face->max();
+
+        for (int i = 0; i < 3; i++){
+            bool tmp1 = (lo[i] < max[i]);
+            bool tmp2 = (lo[i] == hi[i] && lo[i] == max[i]);
+            if ((tmp1 || tmp2) == false){
+                return false;
+            }
+
+            tmp1 = (hi[i] > min[i]);
+            tmp2 = (lo[i] == hi[i] && hi[i] == min[i]);
+            if ((tmp1 || tmp2) == false){
+                return false;
+            }
+
+        }
+        return true;
+
+        // Vector3f faceMin = face->min();
+        // Vector3f faceMax = face->max();
+
+        // return (faceMin.x() < max.x() ||
+        //         faceMin.x() == max.x() && faceMin.x() == faceMax.x()) &&
+        //        (faceMax.x() > min.x() ||
+        //         faceMax.x() == min.x() && faceMin.x() == faceMax.x()) &&
+        //        (faceMin.y() < max.y() ||
+        //         faceMin.y() == max.y() && faceMin.y() == faceMax.y()) &&
+        //        (faceMax.y() > min.y() ||
+        //         faceMax.y() == min.y() && faceMin.y() == faceMax.y()) &&
+        //        (faceMin.z() < max.z() ||
+        //         faceMin.z() == max.z() && faceMin.z() == faceMax.z()) &&
+        //        (faceMax.z() > min.z() ||
+        //         faceMax.z() == min.z() && faceMin.z() == faceMax.z());
     }
 };
 
@@ -43,8 +65,8 @@ class ObjectKDTree {
 
     public:
 
-    int n;
-    Vector3f** vertices;
+    // int n;
+    // Vector3f** vertices;
 
     ObjectKDTreeNode* root;
     vector<Object3D*>* faces;
@@ -57,36 +79,112 @@ class ObjectKDTree {
         return intersect(root, ray, nextFace, hit);
     }
 
-    bool intersect(ObjectKDTreeNode* p, const Ray& ray, Object3D*& nextFace,
+    inline float min_float(float a, float b) const {
+        return a < b ? a : b;
+    }
+
+    inline float max_float(float a, float b) const {
+        return a < b ? b : a;
+    }
+
+    bool intersect(ObjectKDTreeNode* current_node, const Ray& ray, Object3D*& nextFace,
                    Hit& hit) const {
         bool flag = false;
-        for (int i = 0; i < p->faces->size(); ++i)
-            if ((*p->faces)[i]->intersect(ray, hit)) {
-                nextFace = (*p->faces)[i];
+        // 首先检查和当前节点的 face 是否有相交
+        for (int i = 0; i < current_node->faces->size(); i++){
+            if ((*current_node->faces)[i]->intersect(ray, hit)) {
+                nextFace = (*current_node->faces)[i];
                 flag = true;
             }
-        float tl = cuboidIntersect(p->ls, ray),
-              tr = cuboidIntersect(p->rs, ray);
-        if (tl < tr) {
-            if (hit.t <= tl) return flag;
-            if (p->ls) flag |= intersect(p->ls, ray, nextFace, hit);
-            if (hit.t <= tr) return flag;
-            if (p->rs) flag |= intersect(p->rs, ray, nextFace, hit);
+        }
+        
+        // 用 AABB 包围盒加速，返回值是相交的 t 的下界
+        float left_hit_t = aabb_acc_intersect(current_node->ls, ray);
+        float right_hit_t = aabb_acc_intersect(current_node->rs, ray);
+
+
+        // 检查是否和子节点有相交
+        if (left_hit_t < right_hit_t) {
+            if (hit.t <= left_hit_t){
+                return flag;
+            }
+            if (current_node->ls){
+                flag |= intersect(current_node->ls, ray, nextFace, hit);
+            }
+            if (hit.t <= right_hit_t){
+                return flag;
+            }
+            if (current_node->rs){
+                flag |= intersect(current_node->rs, ray, nextFace, hit);
+            } 
         } else {
-            if (hit.t <= tr) return flag;
-            if (p->rs) flag |= intersect(p->rs, ray, nextFace, hit);
-            if (hit.t <= tl) return flag;
-            if (p->ls) flag |= intersect(p->ls, ray, nextFace, hit);
+            if (hit.t <= right_hit_t){
+                return flag;
+            } 
+            if (current_node->rs){
+                flag |= intersect(current_node->rs, ray, nextFace, hit);
+            } 
+            if (hit.t <= left_hit_t){
+                return flag;
+            }
+            if (current_node->ls){
+                flag |= intersect(current_node->ls, ray, nextFace, hit);
+            }
         }
         return flag;
     }
 
-
-    float cuboidIntersect(ObjectKDTreeNode* p, const Ray& ray) const {
+    float aabb_acc_intersect(ObjectKDTreeNode* current_node, const Ray& ray) const {
+        if(current_node == nullptr){
+            return INF;
+        }
+        
         float t = INF;
-        if (!p) return t;
-        AABB(p->min, p->max).intersect(ray, t);
-        return t;
+
+        // AABB 包围盒的实现参考了如下文章
+        // https://zhuanlan.zhihu.com/p/35321344
+
+
+        Vector3f box[2] = {current_node->min, current_node->max};
+        Vector3f ray_origin = ray.getOrigin();
+        Vector3f ray_direction = ray.getDirection();
+        // use for if need to change min and max
+        int signature[3] = {ray_direction.x() < 0, ray_direction.y() < 0, ray_direction.z() < 0};
+        // for x
+        float t_min = (box[signature[0]].x() - ray_origin.x()) / ray_direction.x();
+        float t_max = (box[1 - signature[0]].x() - ray_origin.x()) / ray_direction.x();
+
+        // for y
+        float t_y_min = (box[signature[1]].y() - ray_origin.y()) / ray_direction.y();
+        float t_y_max = (box[1 - signature[1]].y() - ray_origin.y()) / ray_direction.y();
+
+        t_min = max_float(t_min, t_y_min);
+        t_max = min_float(t_max, t_y_max);
+        if (t_max < t_min){
+            // not intersect, return inf
+            return INF;
+        }
+
+        // for z
+        float t_z_min = (box[signature[2]].z() - ray_origin.z()) / ray_direction.z();
+        float t_z_max = (box[1 - signature[2]].z() - ray_origin.z()) / ray_direction.z();
+
+        t_min = max_float(t_min, t_y_min);
+        t_max = min_float(t_max, t_y_max);
+        if (t_max < t_min){
+            return INF;
+        }
+
+        // maybe intersect
+        return t_min;
+
+        // if(current_node == nullptr){
+        //     return INF;
+        // }
+        // float t = INF;
+
+        // AABB(current_node->min, current_node->max).intersect(ray, t);
+        // return t;
     }
 
     
