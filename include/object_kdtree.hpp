@@ -1,5 +1,10 @@
 #ifndef OBJECTKDTREE_H
 #define OBJECTKDTREE_H
+
+#define MAX_TREE_DEPTH 24
+#define MAX_FACE_NUM 128
+
+
 #include <vecmath.h>
 
 #include <map>
@@ -35,81 +40,52 @@ class ObjectKDTreeNode {
 };
 
 class ObjectKDTree {
+
+    public:
+
     int n;
     Vector3f** vertices;
-    ObjectKDTreeNode* build(int depth, int d, vector<Object3D*>* faces,
-                            const Vector3f& min, const Vector3f& max) {
-        ObjectKDTreeNode* p = new ObjectKDTreeNode;
-        p->min = min;
-        p->max = max;
-        Vector3f maxL, minR;
-        if (d == 0) {
-            maxL =
-                Vector3f((p->min.x() + p->max.x()) / 2, p->max.y(), p->max.z());
-            minR =
-                Vector3f((p->min.x() + p->max.x()) / 2, p->min.y(), p->min.z());
-        } else if (d == 1) {
-            maxL =
-                Vector3f(p->max.x(), (p->min.y() + p->max.y()) / 2, p->max.z());
-            minR =
-                Vector3f(p->min.x(), (p->min.y() + p->max.y()) / 2, p->min.z());
-        } else {
-            maxL =
-                Vector3f(p->max.x(), p->max.y(), (p->min.z() + p->max.z()) / 2);
-            minR =
-                Vector3f(p->min.x(), p->min.y(), (p->min.z() + p->max.z()) / 2);
-        }
-        p->faces = new vector<Object3D*>;
-        for (auto face : *faces)
-            if (p->inside(face)) p->faces->push_back(face);
 
-        const int max_faces = 128;
-        const int max_depth = 24;
-
-        if (p->faces->size() > max_faces && depth < max_depth) {
-            p->ls = build(depth + 1, (d + 1) % 3, p->faces, min, maxL);
-            p->rs = build(depth + 1, (d + 1) % 3, p->faces, minR, max);
-
-            vector<Object3D*>*faceL = p->ls->faces, *faceR = p->rs->faces;
-            map<Object3D*, int> cnt;
-            for (auto face : *faceL) cnt[face]++;
-            for (auto face : *faceR) cnt[face]++;
-            p->ls->faces = new vector<Object3D*>;
-            p->rs->faces = new vector<Object3D*>;
-            p->faces->clear();
-            for (auto face : *faceL)
-                if (cnt[face] == 1)
-                    p->ls->faces->push_back(face);
-                else
-                    p->faces->push_back(face);
-            for (auto face : *faceR)
-                if (cnt[face] == 1) p->rs->faces->push_back(face);
-        } else
-            p->ls = p->rs = nullptr;
-        return p;
-    }
-
-    void getFaces(ObjectKDTreeNode* p, vector<Object3D*>* faces) {
-        p->l = faces->size();
-        for (auto face : *(p->faces)) faces->push_back(face);
-        p->r = faces->size();
-        if (p->ls) getFaces(p->ls, faces);
-        if (p->rs) getFaces(p->rs, faces);
-    }
-
-   public:
     ObjectKDTreeNode* root;
     vector<Object3D*>* faces;
-    ObjectKDTree(vector<Object3D*>* faces) {
-        Vector3f min = Vector3f(INF, INF, INF);
-        Vector3f max = -min;
-        for (auto face : *faces) {
-            min = minE(min, face->min());
-            max = maxE(max, face->max());
+
+    inline float min_float(float a, float b){
+        return a < b ? a : b;
+    }
+
+    inline float max_float(float a, float b){
+        return a < b ? b : a;
+    }
+
+    inline Vector3f min_Vf3(const Vector3f& a, const Vector3f&b){
+        return Vector3f(min_float(a.x(), b.x()),
+                        min_float(a.y(), b.y()),
+                        min_float(a.z(), b.z())
+                        );
+    }
+
+    inline Vector3f max_Vf3(const Vector3f& a, const Vector3f&b){
+        return Vector3f(max_float(a.x(), b.x()),
+                        max_float(a.y(), b.y()),
+                        max_float(a.z(), b.z())
+                        );
+    }
+
+   
+    
+    ObjectKDTree(vector<Object3D*>* input_faces) {
+        Vector3f low = Vector3f(INF, INF, INF);
+        Vector3f high = Vector3f(-INF, -INF, -INF);
+
+        for (auto face : *input_faces) {
+            low = min_Vf3(low, face->min());
+            high = max_Vf3(high, face->max());
         }
-        root = build(1, 0, faces, min, max);
-        this->faces = new vector<Object3D*>;
-        getFaces(root, this->faces);
+        // start to build obj kd tree
+        root = build_obj_kdtree(1, 0, input_faces, low, high);
+
+        faces = new vector<Object3D*>;
+        getFaces(root, faces);
     }
 
     float cuboidIntersect(ObjectKDTreeNode* p, const Ray& ray) const {
@@ -147,6 +123,100 @@ class ObjectKDTree {
         }
         return flag;
     }
+
+    ObjectKDTreeNode* build_obj_kdtree(int depth, int dimension, vector<Object3D*>* faces,
+                        const Vector3f& low, const Vector3f& high) {
+        ObjectKDTreeNode* current_node = new ObjectKDTreeNode;
+        current_node->min = low;
+        current_node->max = high;
+
+        // 遍历父节点传进来的所有 face 
+        current_node->faces = new vector<Object3D*>;
+        for (auto face : *faces){
+            if (current_node->inside(face)) {
+                current_node->faces->push_back(face);
+            }
+        }
+
+        if (current_node->faces->size() > MAX_FACE_NUM && depth < MAX_TREE_DEPTH) {
+
+            // calculate next middle point accord to dimension
+            float max_l_x = current_node->max.x();
+            float max_l_y = current_node->max.y();
+            float max_l_z = current_node->max.z();
+            float min_r_x = current_node->min.x();
+            float min_r_y = current_node->min.y();
+            float min_r_z = current_node->min.z();
+
+            if (dimension == 0){
+                float mid_x = (current_node->min.x() + current_node->max.x()) / 2;
+                max_l_x = mid_x;
+                min_r_x = mid_x;
+            }else if (dimension == 1){
+                float mid_y = (current_node->min.y() + current_node->max.y()) / 2;
+                max_l_y = mid_y;
+                min_r_y = mid_y;
+            }else{
+                float mid_z = (current_node->min.z() + current_node->max.z()) / 2;
+                max_l_z = mid_z;
+                min_r_z = mid_z;
+            }
+
+            Vector3f maxL(max_l_x, max_l_y, max_l_z);
+            Vector3f minR(min_r_x, min_r_y, min_r_z);
+
+            // recursive build left and right
+            current_node->ls = build_obj_kdtree(depth + 1, (dimension + 1) % 3, current_node->faces, low, maxL);
+            current_node->rs = build_obj_kdtree(depth + 1, (dimension + 1) % 3, current_node->faces, minR, high);
+
+            vector<Object3D*>*faceL = current_node->ls->faces, *faceR = current_node->rs->faces;
+            
+            // 在左右子树中都出现的面片放到父节点上
+            map<Object3D*, int> face_counter;
+
+            for (auto face : *faceL){
+                face_counter[face]++;
+            } 
+
+            for (auto face : *faceR){
+                face_counter[face]++;
+            } 
+
+            current_node->ls->faces = new vector<Object3D*>;
+            current_node->rs->faces = new vector<Object3D*>;
+            current_node->faces->clear();
+
+            for (auto face : *faceL){
+                if (face_counter[face] == 1){
+                    current_node->ls->faces->push_back(face);
+                }else{
+                    current_node->faces->push_back(face);
+                }
+            }
+                
+            for (auto face : *faceR){
+                if (face_counter[face] == 1){
+                    current_node->rs->faces->push_back(face);
+                }
+            }
+                
+        } else{
+            // 超过了最多面片数量或者递归深度，不再继续生长节点
+            current_node->ls = nullptr;
+            current_node->rs = nullptr;
+        }
+            
+        return current_node;
+    }
+
+    void getFaces(ObjectKDTreeNode* current_node, vector<Object3D*>* faces) {
+        current_node->l = faces->size();
+        for (auto face : *(current_node->faces)) faces->push_back(face);
+        current_node->r = faces->size();
+        if (current_node->ls) getFaces(current_node->ls, faces);
+        if (current_node->rs) getFaces(current_node->rs, faces);
+    }
+
 };
 
 #endif  // !OBJECTKDTREE_H

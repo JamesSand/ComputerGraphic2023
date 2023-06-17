@@ -21,13 +21,18 @@ class Object3D {
     // Intersect Ray with this object. If hit, store information in hit
     // structure. 定义求交函数
     virtual bool intersect(const Ray &r, Hit &h) = 0;
-    virtual vector<Object3D *> getFaces() { return {this}; }
+
+    virtual vector<Object3D *> getFaces() {
+         return {this}; 
+    }
+
     virtual Vector3f min() const { return Vector3f(); }
     virtual Vector3f max() const { return Vector3f(); }
     virtual Vector3f center() const { return Vector3f(); }
-    virtual Ray randomRay(int axis = -1, long long int seed=0) const {
+    virtual Ray randomRay(int axis = -1, long long rand_seed=0) const {
         return Ray(Vector3f::ZERO, Vector3f::ZERO);
     }
+    
     Material *material;
 };
 

@@ -170,11 +170,11 @@ class Mesh : public Object3D {
         // return sequentialSearch(r, h);
     }
 
-    bool sequentialSearch(const Ray &r, Hit &h) {
-        bool result = false;
-        for (auto triangle : triangles) result |= triangle->intersect(r, h);
-        return result;
-    }
+    // bool sequentialSearch(const Ray &r, Hit &h) {
+    //     bool result = false;
+    //     for (auto triangle : triangles) result |= triangle->intersect(r, h);
+    //     return result;
+    // }
 
     Vector3f min() const override { return aabb.bounds[0]; }
     Vector3f max() const override { return aabb.bounds[1]; }

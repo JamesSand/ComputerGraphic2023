@@ -13,42 +13,49 @@ class Group {
    public:
     Group(const vector<Object3D *> &objs) {
         for (auto obj : objs) {
-            vector<Object3D *> newFaces = obj->getFaces();
-            faces.insert(faces.end(), newFaces.begin(), newFaces.end());
+            vector<Object3D *> temp_face = obj->getFaces();
+            faces.insert(faces.end(), temp_face.begin(), temp_face.end());
         }
-        kdTree = new ObjectKDTree(&faces);
+        obj_kdtree = new ObjectKDTree(&faces);
     }
-    ~Group() { delete kdTree; }
+    ~Group() { 
+        delete obj_kdtree; 
+    }
 
     // 对列表里所有物体都求一遍交点
-    bool intersect(const Ray &r, Hit &h) { return kdTree->intersect(r, h); }
-
-    bool sequentialSearch(const Ray &r, Hit &h) {
-        bool flag = false;
-        for (auto face : faces)
-            if (face) flag |= face->intersect(r, h);
-        return flag;
+    bool intersect(const Ray &r, Hit &h) { 
+        return obj_kdtree->intersect(r, h); 
     }
+
+    // bool sequentialSearch(const Ray &r, Hit &h) {
+    //     bool flag = false;
+    //     for (auto face : faces)
+    //         if (face) flag |= face->intersect(r, h);
+    //     return flag;
+    // }
 
     int getGroupSize() { return faces.size(); }
     Object3D *operator[](const int &i) {
         if (i >= faces.size() || i < 0) {
-            std::cerr << "Index Error: i = " << i << std::endl;
+            std::cout << "Invalid index " << i << std::endl;
             return nullptr;
         }
+
         return faces[i];
     }
 
     vector<Object3D *> getIlluminant() const {
-        vector<Object3D *> illuminant;
-        for (int i = 0; i < faces.size(); ++i)
-            if (faces[i]->material->emission != Vector3f::ZERO)
-                illuminant.push_back(faces[i]);
-        return illuminant;
+        vector<Object3D *> illuminants;
+        for (int i = 0; i < faces.size(); i++){
+            if (faces[i]->material->emission != Vector3f::ZERO){
+                illuminants.push_back(faces[i]);
+            }
+        }
+        return illuminants;
     }
 
    private:
-    ObjectKDTree *kdTree;
+    ObjectKDTree *obj_kdtree;
     vector<Object3D *> faces;
 };
 
