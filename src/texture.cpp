@@ -3,6 +3,7 @@
 
 #include <iostream>
 
+// 图像读入库
 #include "stb_image.h"
 using namespace std;
 int Texture::getIdx(float u, float v) const {

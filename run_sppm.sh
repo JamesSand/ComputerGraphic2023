@@ -23,10 +23,10 @@ cd ..
 
 # testcases/scene18_dof_0.txt
 
-TEST_CASE_NAME=scene06_bunny_1k_vn
+# TEST_CASE_NAME=scene06_bunny_1k_vn
 # TEST_CASE_NAME=scene19_sibenik
 # TEST_CASE_NAME=scene20_diamond_r
-rm -r sppm_output
+TEST_CASE_NAME=scene18_dof
 
 mkdir -p sppm_output
 mkdir -p sppm_output/$TEST_CASE_NAME
