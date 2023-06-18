@@ -1,0 +1,1 @@
+python motion.py --r 1.bmp --g 2.bmp --b 3.bmp --out result.bmp

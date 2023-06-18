@@ -111,6 +111,8 @@ class Triangle : public Object3D {
         float ra = Vector3f::cross(vb, vc).length(),
               rb = Vector3f::cross(vc, va).length(),
               rc = Vector3f::cross(va, vb).length();
+
+        // 重心插值
         Vector2f uv = (ra * at + rb * bt + rc * ct) / (ra + rb + rc);
         u = uv.x();
         v = uv.y();

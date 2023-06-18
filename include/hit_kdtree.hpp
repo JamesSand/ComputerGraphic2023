@@ -13,7 +13,7 @@ struct HitKDTreeNode {
     HitKDTreeNode *ls, *rs;
 };
 
-// 这里只是沿用了 object kdtree 的写法，但是本质上是一维的 kdtree，实际上也就是 线段树
+// 这里只是沿用了 object kdtree 的写法，将 hitpoint 按照三维进行分类
 class HitKDTree {
 
     public:
@@ -143,29 +143,19 @@ class HitKDTree {
         if (current_node == nullptr){
             return;
         }
-        // // if (!current_node) return;
-        // float mind = 0;
-        // if (photon.x() > current_node->max.x()) mind += square_float(photon.x() - current_node->max.x());
-        // if (photon.x() < current_node->min.x()) mind += square_float(current_node->min.x() - photon.x());
-        // if (photon.y() > current_node->max.y()) mind += square_float(photon.y() - current_node->max.y());
-        // if (photon.y() < current_node->min.y()) mind += square_float(current_node->min.y() - photon.y());
-        // if (photon.z() > current_node->max.z()) mind += square_float(photon.z() - current_node->max.z());
-        // if (photon.z() < current_node->min.z()) mind += square_float(current_node->min.z() - photon.z());
-        // if (mind > current_node->maxr2) return ;
 
         // aabb 包围盒加速检查
         if (aabb_acc_check(current_node, photon) == false){
             return;
         }
 
-
-
         if ((photon - current_node->hit->position).squaredLength() <= current_node->hit->r2) {
             // 小于 吸收 radius 可以被吸收
             Hit * hitpoint = current_node->hit;
-            float factor = (hitpoint->n * ALPHA + ALPHA) / (hitpoint->n * ALPHA + 1.);
-            Vector3f dr = direction - hitpoint->normal * (2 * Vector3f::dot(direction, hitpoint->normal));
-            hitpoint->n++;
+            // 和之前做一个加权平均
+            float factor = (hitpoint->phono_num * ALPHA + ALPHA) / (hitpoint->phono_num * ALPHA + 1.);
+            // Vector3f dr = direction - hitpoint->normal * (2 * Vector3f::dot(direction, hitpoint->normal));
+            hitpoint->phono_num++;
             // 本来 alpha 是 0.6 但是这里更新的是 radius square
             // 更新半径
             hitpoint->r2 *= factor;

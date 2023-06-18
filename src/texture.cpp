@@ -21,6 +21,8 @@ Texture::Texture(const char *textureFile) {
     } else {
         pic = nullptr;
     }
+
+    counter = 0;
 }
 
 Vector3f Texture::getColor(int idx) const {
@@ -28,33 +30,60 @@ Vector3f Texture::getColor(int idx) const {
 }
 
 Vector3f Texture::getColor(int u, int v) const {
-    if (!pic) return Vector3f::ZERO;
+    if (!pic){
+        return Vector3f::ZERO;
+    }
+    // 边界检查
     u = u < 0 ? 0 : u;
     u = u > w - 1 ? w - 1 : u;
     v = v < 0 ? 0 : v;
     v = v > h - 1 ? h - 1 : v;
     int idx = v * w * c + u * c;
+
     return Vector3f(pic[idx + 0], pic[idx + 1], pic[idx + 2]) / 255.;
+
+}
+
+
+Vector3f Texture::get_color_mod(float u, float v) const{
+    return Vector3f::ZERO;
 }
 
 Vector3f Texture::getColor(float u, float v) const {
-    if (!pic) return Vector3f::ZERO;
+    if (!pic){
+        return Vector3f::ZERO;
+    }
+
+    cout <<  "real " << u << " " << v << endl;
+
     u -= int(u);
     v -= int(v);
+
     u = u < 0 ? 1 + u : u;
     v = v < 0 ? 1 + v : v;
     u = u * w;
     v = h * (1 - v);
+
     int iu = (int)u, iv = (int)v;
+
+    cout <<  "after " << iu << " " << iv << endl;
+    // counter += 1;
+    // if(counter == 5){
+    //     exit(0);
+    // }
+
     float alpha = u - iu, beta = v - iv;
+
+    // 双线性差值
     Vector3f ret(0);
     ret += (1 - alpha) * (1 - beta) * getColor(iu, iv);
     ret += alpha * (1 - beta) * getColor(iu + 1, iv);
     ret += (1 - alpha) * beta * getColor(iu, iv + 1);
     ret += alpha * beta * getColor(iu + 1, iv + 1);
     return ret;
-    int idx = getIdx(u, v);
-    return Vector3f(pic[idx + 0], pic[idx + 1], pic[idx + 2]) / 255.;
+
+    // int idx = getIdx(u, v);
+    // return Vector3f(pic[idx + 0], pic[idx + 1], pic[idx + 2]) / 255.;
 }
 
 float Texture::getDisturb(float u, float v, Vector2f &grad) const {

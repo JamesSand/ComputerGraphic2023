@@ -11,8 +11,7 @@
 const float INF_FOCAL_LENGTH = 0x3f3f3f3f;
 class Camera {
    public:
-    Camera(const Vector3f &center, const Vector3f &direction,
-           const Vector3f &up, int imgW, int imgH) {
+    Camera(const Vector3f &center, const Vector3f &direction, const Vector3f &up, int imgW, int imgH) {
         this->center = center;
         this->direction = direction.normalized();
         this->horizontal = Vector3f::cross(this->direction, up);
@@ -62,15 +61,20 @@ class PerspectiveCamera : public Camera {
 
     PerspectiveCamera(const Vector3f &center, const Vector3f &direction,
                       const Vector3f &up, int imgW, int imgH, float angle,
-                      float f = 20.0f, float aperture = 1.0f)
+                      float focal = 20.0f, float aperture = 1.0f)
         : Camera(center, direction, up, imgW, imgH),
-          focalLength(f),
+          focalLength(focal),
           aperture(aperture) {
         // angle is fovy in radian.
         fovyd = angle / 3.1415 * 180.0;
-        fx = fy = (float)height / (2 * tanf(angle / 2));
-        cx = width / 2.0f;
-        cy = height / 2.0f;
+
+        cx = imgW / 2.0;
+        cy = imgH / 2.0;
+        fx = fy = float(imgW) / (2.0 * tanf(angle / 2.0));
+
+        // fx = fy = (float)height / (2 * tanf(angle / 2));
+        // cx = width / 2.0f;
+        // cy = height / 2.0f;
     }
 
     void resize(int w, int h) override {

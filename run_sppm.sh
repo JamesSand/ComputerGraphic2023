@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-ROUNDS=5000
+ROUNDS=300
 PHOTONS=1000000
 CKPT_INTERVAL=3
 METHOD=sppm
@@ -26,9 +26,36 @@ cd ..
 # TEST_CASE_NAME=scene06_bunny_1k_vn
 # TEST_CASE_NAME=scene19_sibenik
 # TEST_CASE_NAME=scene20_diamond_r
-TEST_CASE_NAME=scene18_dof
+# TEST_CASE_NAME=scene18_dof
+
+# TEST_CASE_NAME=nep
+
+# TEST_CASE_NAME=vase
+
+# TEST_CASE_NAME=disper_r
+
+# TEST_CASE_NAME=dragon
 
 mkdir -p sppm_output
+
+# TEST_CASE_NAME=heart_1
+# mkdir -p sppm_output/$TEST_CASE_NAME
+# time bin/PA1 testcases/$TEST_CASE_NAME.txt sppm_output/$TEST_CASE_NAME $ROUNDS $PHOTONS $CKPT_INTERVAL
+
+
+# TEST_CASE_NAME=heart_2
+# mkdir -p sppm_output/$TEST_CASE_NAME
+# time bin/PA1 testcases/$TEST_CASE_NAME.txt sppm_output/$TEST_CASE_NAME $ROUNDS $PHOTONS $CKPT_INTERVAL
+
+
+# TEST_CASE_NAME=heart_3
+
+
+# TEST_CASE_NAME=dragon
+# mkdir -p sppm_output/$TEST_CASE_NAME
+# time bin/PA1 testcases/$TEST_CASE_NAME.txt sppm_output/$TEST_CASE_NAME $ROUNDS $PHOTONS $CKPT_INTERVAL
+
+TEST_CASE_NAME=balls
 mkdir -p sppm_output/$TEST_CASE_NAME
 time bin/PA1 testcases/$TEST_CASE_NAME.txt sppm_output/$TEST_CASE_NAME $ROUNDS $PHOTONS $CKPT_INTERVAL
 

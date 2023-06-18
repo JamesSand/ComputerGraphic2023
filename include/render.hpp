@@ -265,6 +265,9 @@ class SPPM {
                         int hitpoint_index = i * h + j;
                         Hit * current_hit = hitPoints[hitpoint_index];
 
+                        // https://zhuanlan.zhihu.com/p/259565623
+                        // 参考上边 post 对 PPM color 的计算
+
                         Vector3f current_color = current_hit->flux / (M_PI * current_hit->r2 * numPhotons * (round + 1)) +
                                                     current_hit->fluxLight / (round + 1);
                         ckpt_img.SetPixel(i, j, current_color);

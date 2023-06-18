@@ -16,7 +16,7 @@ class Hit {
         r2 = INIT_RADIUS;
         attenuation = Vector3f(1);
         normal = fluxLight = flux = color = Vector3f::ZERO;
-        n = 0;
+        phono_num = 0;
     }
 
     Hit(float _t, Material *m, const Vector3f &norm) {
@@ -26,7 +26,7 @@ class Hit {
         r2 = INIT_RADIUS;
         attenuation = Vector3f(1);
         fluxLight = flux = color = Vector3f::ZERO;
-        n = 0;
+        phono_num = 0;
     }
 
     float getT() const { return t; }
@@ -51,12 +51,16 @@ class Hit {
     // flux 为通量
     // attenuation 衰减
     Vector3f normal, color, flux, fluxLight, attenuation;
-    Vector3f dir, position;
-    int n;
+    // Vector3f dir, position;
+    Vector3f position;
+    // phono number
+    int phono_num;
 };
 
 inline std::ostream &operator<<(std::ostream &os, const Hit &h) {
     os << "Hit <" << h.getT() << ", " << h.getNormal() << ">";
     return os;
 }
+
+
 #endif  // HIT_H

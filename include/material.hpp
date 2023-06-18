@@ -35,6 +35,9 @@ class Material {
             return texture.getColor(u, v);
     }
 
+
+    
+
     Vector3f phongShade(const Ray &ray, const Hit &hit,
                         const Vector3f &dirToLight,
                         const Vector3f &lightColor) {

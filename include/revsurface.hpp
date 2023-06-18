@@ -37,44 +37,6 @@ class RevSurface : public Object3D {
         // meshInit();
     }
 
-    // void meshInit() {
-    //     std::vector<Vector3f> VV;
-    //     std::vector<Vector3f> VN;
-    //     std::vector<Tup3u> VF;
-    //     std::vector<CurvePoint> curvePoints;
-    //     pCurve->discretize(resolution, curvePoints);
-    //     const int steps = 40;
-    //     for (unsigned int ci = 0; ci < curvePoints.size(); ++ci) {
-    //         const CurvePoint &cp = curvePoints[ci];
-    //         for (unsigned int i = 0; i < steps; ++i) {
-    //             float t = (float)i / steps;
-    //             Quat4f rot;
-    //             // 生成参数曲面
-    //             rot.setAxisAngle(t * 2 * 3.14159, Vector3f::UP);
-    //             Vector3f pnew = Matrix3f::rotation(rot) * cp.V;
-    //             Vector3f pNormal = Vector3f::cross(cp.T, -Vector3f::FORWARD);
-    //             Vector3f nnew = Matrix3f::rotation(rot) * pNormal;
-    //             VV.push_back(pnew);
-    //             VN.push_back(nnew);
-    //             int i1 = (i + 1 == steps) ? 0 : i + 1;
-    //             if (ci != curvePoints.size() - 1) {
-    //                 // 把四边形剖分成两个三角形
-    //                 VF.emplace_back((ci + 1) * steps + i, ci * steps + i1,
-    //                                 ci * steps + i);
-    //                 VF.emplace_back((ci + 1) * steps + i, (ci + 1) * steps +
-    //                 i1,
-    //                                 ci * steps + i1);
-    //             }
-    //         }
-    //     }
-    //     for (int i = 0; i < VF.size(); ++i) {
-    //         Triangle t(VV[std::get<0>(VF[i])], VV[std::get<1>(VF[i])],
-    //                    VV[std::get<2>(VF[i])], material);
-    //         t.setVNorm(VN[std::get<0>(VF[i])], VN[std::get<1>(VF[i])],
-    //                    VN[std::get<2>(VF[i])]);
-    //         triangles.push_back(t);
-    //     }
-    // }
 
     ~RevSurface() override { delete pCurve; }
 
@@ -85,7 +47,10 @@ class RevSurface : public Object3D {
 
     bool newtonIntersect(const Ray &r, Hit &h) {
         float t, theta, mu;
-        if (!aabb.intersect(r, t) || t > h.getT()) return false;
+        if (!aabb.intersect(r, t) || t > h.getT()) {
+            return false;
+        }
+
         getUV(r, t, theta, mu);
         Vector3f normal, point;
         // cout << "begin!" << endl;
@@ -101,29 +66,24 @@ class RevSurface : public Object3D {
             return false;
         h.set(t, material, normal.normalized(),
               material->getColor(theta / (2 * M_PI), mu), point);
+
         // cout << "Intersect! t:" << t << " theta: " << theta / (2 * M_PI)
         //      << " mu: " << mu << endl;
         return true;
     }
 
-    // bool meshIntersect(const Ray &r, Hit &h, float tmin) {
-    //     if (triangles.size() == 0) meshInit();
-    //     float tb;
-    //     if (!aabb.intersect(r, tb)) return false;
-    //     if (tb > h.getT()) return false;
-    //     bool flag = false;
-    //     for (auto triangle : triangles) flag |= triangle.intersect(r, h,
-    //     tmin); return flag;
-    // }
 
     bool newton(const Ray &r, float &t, float &theta, float &mu,
                 Vector3f &normal, Vector3f &point) {
         Vector3f dmu, dtheta;
-        for (int i = 0; i < NEWTON_STEPS; ++i) {
+        for (int i = 0; i < NEWTON_STEPS; i++) {
+
+            // in case they are in safty range
             if (theta < 0.0) theta += 2 * M_PI;
             if (theta >= 2 * M_PI) theta = fmod(theta, 2 * M_PI);
             if (mu >= 1) mu = 1.0 - FLT_EPSILON;
             if (mu <= 0) mu = FLT_EPSILON;
+
             point = getPoint(theta, mu, dtheta, dmu);
             Vector3f f = r.origin + r.direction * t - point;
             float dist2 = f.squaredLength();
@@ -131,7 +91,10 @@ class RevSurface : public Object3D {
             //      << " theta: " << theta / (2 * M_PI) << " mu: " << mu
             //      << " dist2: " << dist2 << endl;
             normal = Vector3f::cross(dmu, dtheta);
-            if (dist2 < NEWTON_EPS) return true;
+            if (dist2 < NEWTON_EPS){
+                // 相邻两次迭代更新小于阈值，停止迭代
+                return true;
+            }
             float D = Vector3f::dot(r.direction, normal);
             t -= Vector3f::dot(dmu, Vector3f::cross(dtheta, f)) / D;
             mu -= Vector3f::dot(r.direction, Vector3f::cross(dtheta, f)) / D;

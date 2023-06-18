@@ -21,18 +21,22 @@ class Plane : public Object3D {
     ~Plane() override = default;
 
     bool intersect(const Ray &r, Hit &h) override {
-        Vector3f o(r.getOrigin()), dir(r.getDirection());
+
+        Vector3f ray_o = r.getOrigin();
+        Vector3f ray_d = r.getDirection();
         // dir.normalize();
-        float cos = Vector3f::dot(normal, dir);
+        float cos = Vector3f::dot(normal, ray_d);
         // 平行
         if (cos > -1e-6) return false;
         // d = n.o + t*n.dir => t = (d-n.o)/(n.dir)
-        float t = (d - Vector3f::dot(normal, o)) / cos;
+        float t = (d - Vector3f::dot(normal, ray_o)) / cos;
         if (t < 0 || t > h.getT()) return false;
         float u, v;
-        Vector3f p(o + dir * t);
-        getUV(u, v, p);
-        h.set(t, material, getNormal(u, v), material->getColor(u, v), p);
+        Vector3f position(ray_o + ray_d * t);
+        getUV(u, v, position);
+
+        
+        h.set(t, material, getNormal(u, v), material->getColor(u, v), position);
         return true;
     }
 
