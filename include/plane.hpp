@@ -36,6 +36,8 @@ class Plane : public Object3D {
         getUV(u, v, position);
 
         
+        Vector3f texture_color = material->special_color(position);
+
         h.set(t, material, getNormal(u, v), material->getColor(u, v), position);
         return true;
     }

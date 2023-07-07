@@ -36,6 +36,16 @@ class Material {
     }
 
 
+    Vector3f special_color(Vector3f position){
+        if (!texture.pic){
+            return color;
+        }else{
+            // return texture.pic;
+        }
+            
+    }
+
+
     
 
     Vector3f phongShade(const Ray &ray, const Hit &hit,

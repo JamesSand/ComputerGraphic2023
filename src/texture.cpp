@@ -54,7 +54,7 @@ Vector3f Texture::getColor(float u, float v) const {
         return Vector3f::ZERO;
     }
 
-    cout <<  "real " << u << " " << v << endl;
+    // cout <<  "real " << u << " " << v << endl;
 
     u -= int(u);
     v -= int(v);
@@ -66,7 +66,7 @@ Vector3f Texture::getColor(float u, float v) const {
 
     int iu = (int)u, iv = (int)v;
 
-    cout <<  "after " << iu << " " << iv << endl;
+    // cout <<  "after " << iu << " " << iv << endl;
     // counter += 1;
     // if(counter == 5){
     //     exit(0);

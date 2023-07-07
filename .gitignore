@@ -3,9 +3,8 @@ copy_sppm_output
 output 
 sppm_output 
 bin
-texture
+
 deps
-mesh
 
 temp
 

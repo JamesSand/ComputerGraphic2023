@@ -4,16 +4,12 @@ PerspectiveCamera {
     direction 0 -0.4 -5
     up 0 1 0
     angle 30
-    width 600
-    height 600
+    width 800
+    height 800
 }
 
 Lights {
-    numLights 2
-    DirectionalLight {
-        direction -0.5 -0.5 -1
-        color 0.5 0.5 0.5 
-    }
+    numLights 1
     PointLight {
       position 0 5 5
       color 0.8 0.8 0.4
@@ -28,10 +24,10 @@ Background {
 Materials {
     numMaterials 6
     Material { 
-	  color 1 1 1
-	  specularColor 0.7 0.7 0.7
-	  shininess 20
-      type 1 0 0
+	  color 1 0.4 0.7
+	  specularColor 0.1 0.1 0.1
+	  shininess 10
+      type 0 0 1
       refr 1.5
 	}
     Material { 
@@ -42,7 +38,7 @@ Materials {
     Material { 
         color 0.8 0.8 0.8
         type 1 0 0
-        emission 2 2 2
+        emission 3 3 3
     }
     Material { 
         color 0.75 0.25 0.25 
@@ -89,7 +85,7 @@ Group {
         radius 2 
     }
     Sphere {
-	    center 1.5 0 6 
+	    center -1.5 0 6 
         radius 2
     }
     MaterialIndex 3
